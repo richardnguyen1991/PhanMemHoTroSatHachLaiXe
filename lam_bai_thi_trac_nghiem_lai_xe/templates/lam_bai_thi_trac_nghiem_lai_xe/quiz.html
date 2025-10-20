@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ quiz.title }}</title>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <style>
+    :root{
+      --bg:#0f172a;
+      --card:#111827;
+      --muted:#94a3b8;
+      --text:#e5e7eb;
+      --accent:#22c55e;
+      --accent-2:#3b82f6;
+      --danger:#ef4444;
+      --ring:#334155;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:linear-gradient(180deg,#0b1220, #0f172a);
+      color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+      min-height:100svh; display:grid; place-items:center; padding:24px;
+    }
+    .quiz{
+      width:min(780px, 95vw);
+      background:linear-gradient(180deg,#0d1117,#0f172a);
+      border:1px solid #1f2937; border-radius:20px; padding:24px 22px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.02);
+    }
+    .quiz header{
+      display:flex; align-items:center; gap:14px; margin-bottom:18px;
+    }
+    .badge{
+      font-weight:700; font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+      background:#0b1220; border:1px solid #1f2937; color:var(--muted);
+      padding:6px 10px; border-radius:999px;
+    }
+    .title{font-size:20px; font-weight:700}
+    .desc{color:var(--muted); font-size:14px}
+
+    .progress{
+      height:10px; width:100%; background:#0b1323; border-radius:999px; overflow:hidden;
+      border:1px solid #1f2937; margin:12px 0 20px;
+    }
+    .bar{height:100%; width:0%; background:linear-gradient(90deg,var(--accent-2), var(--accent)); transition:width .35s ease}
+
+    .card{
+      border:1px solid #1f2937; border-radius:16px; padding:18px;
+      background:radial-gradient(1200px 400px at -10% -10%,rgba(59,130,246,.08),transparent),
+                 linear-gradient(180deg,rgba(255,255,255,.02),transparent 50%);
+    }
+
+    .q-index{color:var(--muted); font-size:13px; letter-spacing:.06em}
+    .question{font-size:18px; font-weight:700; margin:6px 0 12px}
+
+    .choices{display:grid; gap:10px; margin-top:8px}
+    .choice{
+      display:flex; align-items:center; gap:10px;
+      padding:12px 14px; border:1px solid #1f2937; border-radius:12px; cursor:pointer;
+      background:#0b1323; transition:transform .06s ease, border-color .2s ease, background .2s ease;
+    }
+    .choice:hover{ transform:translateY(-1px); border-color:#334155 }
+    .choice input{accent-color:var(--accent-2)}
+    .choice.correct{ border-color:rgba(34,197,94,.55); background:rgba(34,197,94,.08) }
+    .choice.wrong{   border-color:rgba(239,68,68,.55); background:rgba(239,68,68,.08) }
+
+    .controls{display:flex; justify-content:space-between; align-items:center; margin-top:16px}
+    .btn{
+      background:#0b1323; color:var(--text); border:1px solid #1f2937; padding:10px 14px; border-radius:12px;
+      cursor:pointer; font-weight:600; transition:transform .06s ease, border-color .2s ease, background .2s ease;
+    }
+    .btn:hover{ transform:translateY(-1px); border-color:#334155 }
+    .btn.primary{ background:linear-gradient(180deg,#134e4a,#065f46); border-color:#065f46 }
+    .btn.primary:hover{ filter:brightness(1.05) }
+    .btn[disabled]{ opacity:.6; cursor:not-allowed; transform:none }
+
+    .result{
+      display:none; text-align:center; padding:18px 8px;
+    }
+    .score{
+      font-size:42px; font-weight:900; letter-spacing:.02em; margin:4px 0 10px;
+      background:linear-gradient(90deg,#93c5fd,#86efac); -webkit-background-clip:text; background-clip:text; color:transparent;
+    }
+    .review{
+      margin-top:14px; text-align:left; display:grid; gap:10px;
+    }
+    .review .item{
+      border:1px solid #1f2937; border-radius:12px; padding:12px; background:#0b1323;
+    }
+    .footnote{ color:var(--muted); font-size:12px; margin-top:8px }
+  </style>
+</head>
+<body>
+
+  <div class="quiz" id="quiz">
+    <header>
+      <span class="badge">{{ quiz.badge_label }}</span>
+      <div>
+        <div class="title">{{ quiz.title }}</div>
+        <div class="desc">{{ quiz.description }}</div>
+      </div>
+    </header>
+
+    <div class="progress" aria-hidden="true"><div class="bar" id="bar"></div></div>
+
+    <div class="card">
+      <div class="q-index" id="qIndex"></div>
+      <div class="question" id="questionText">...</div>
+      <form class="choices" id="choices"></form>
+
+      <div class="controls">
+        <button class="btn" id="btnPrev" type="button">◀ Trở lại</button>
+        <div style="display:flex; gap:8px; align-items:center">
+          <span class="footnote" id="miniHint"></span>
+          <button class="btn primary" id="btnNext" type="button">Câu tiếp ▶</button>
+        </div>
+      </div>
+      <div class="footnote">Mẹo: Bạn có thể bấm trực tiếp vào đáp án để chuyển sang câu kế tiếp.</div>
+    </div>
+
+    <div class="result" id="result">
+      <div class="score" id="scoreText">0/0</div>
+      <div class="desc" id="remark">Bạn đã hoàn thành bài!</div>
+      <div class="review" id="review"></div>
+      <div style="margin-top:16px; display:flex; gap:10px; justify-content:center">
+        <button class="btn" id="btnRetry" type="button">Làm lại</button>
+        <button class="btn" id="btnShowAnswers" type="button">Hiện/Ẩn đáp án đúng</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const QUESTIONS = JSON.parse('{{ questions_json|escapejs }}');
+
+    let current = 0;
+    let score = 0;
+    const picks = new Array(QUESTIONS.length).fill(null);
+
+    const qIndexEl = $("#qIndex");
+    const qTextEl  = $("#questionText");
+    const choicesEl= $("#choices");
+    const nextBtn  = $("#btnNext");
+    const prevBtn  = $("#btnPrev");
+    const barEl    = $("#bar");
+    const miniHint = $("#miniHint");
+    const resultEl = $("#result");
+    const scoreText= $("#scoreText");
+    const remarkEl = $("#remark");
+    const reviewEl = $("#review");
+    const retryBtn = $("#btnRetry");
+    const showAnsBtn = $("#btnShowAnswers");
+
+    renderQuestion();
+    updateProgress();
+    updateControls();
+
+    function renderQuestion(){
+      const item = QUESTIONS[current];
+      qIndexEl.text(`Câu ${current+1}/${QUESTIONS.length}`);
+      qTextEl.text(item.q);
+      miniHint.text(picks[current]!==null ? "Bạn đã chọn đáp án cho câu này." : "");
+
+      choicesEl.empty();
+      item.choices.forEach((text, idx) => {
+        const id = `q${current}_c${idx}`;
+        const checked = picks[current] === idx ? "checked" : "";
+        const $choice = $(`
+          <label class="choice" for="${id}">
+            <input type="radio" name="q${current}" id="${id}" value="${idx}" ${checked} />
+            <span>${String.fromCharCode(65+idx)}. ${text}</span>
+          </label>
+        `);
+        choicesEl.append($choice);
+      });
+
+      if(picks[current] !== null){
+        markChoiceStyles(picks[current], item.correctIndex);
+      }
+
+      $(`input[name='q${current}']`).on("change", function(){
+        const chosen = Number($(this).val());
+        const wasPicked = picks[current] !== null;
+        picks[current] = chosen;
+
+        if(!wasPicked){
+          if(chosen === item.correctIndex) score++;
+        }else{
+          score = picks.reduce((acc, pick, i) => acc + (pick === QUESTIONS[i].correctIndex ? 1 : 0), 0);
+        }
+
+        markChoiceStyles(chosen, item.correctIndex);
+        miniHint.text("Đã lưu đáp án. Đang chuyển câu...");
+        setTimeout(nextQuestion, 800);
+      });
+    }
+
+    function markChoiceStyles(chosen, correct){
+      choicesEl.find(".choice").removeClass("correct wrong");
+      choicesEl.find(".choice").each(function(i){
+        if(i === correct) $(this).addClass("correct");
+        if(i === chosen && chosen !== correct) $(this).addClass("wrong");
+      });
+    }
+
+    function nextQuestion(){
+      if(current < QUESTIONS.length - 1){
+        current++;
+        renderQuestion();
+        updateProgress();
+        updateControls();
+      }else{
+        showResult();
+      }
+    }
+
+    function prevQuestion(){
+      if(current > 0){
+        current--;
+        renderQuestion();
+        updateProgress();
+        updateControls();
+      }
+    }
+
+    function updateProgress(){
+      const pct = ((current) / QUESTIONS.length) * 100;
+      barEl.css("width", `${pct}%`);
+    }
+
+    function updateControls(){
+      prevBtn.prop("disabled", current === 0);
+      nextBtn.text(current === QUESTIONS.length - 1 ? "Hoàn thành ✔" : "Câu tiếp ▶");
+    }
+
+    function showResult(){
+      barEl.css("width", "100%");
+      $(".card").hide();
+      buildReview();
+      const total = QUESTIONS.length;
+      scoreText.text(`${score}/${total}`);
+      remarkEl.text(getRemark(score, total));
+      resultEl.slideDown(160);
+    }
+
+    function buildReview(){
+      reviewEl.empty();
+      QUESTIONS.forEach((item, i) => {
+        const userPick = picks[i];
+        const correct = item.correctIndex;
+        const correctText = item.choices[correct];
+        const userText = userPick !== null ? item.choices[userPick] : "(chưa chọn)";
+        const ok = userPick === correct;
+        const $row = $(`
+          <div class="item">
+            <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start">
+              <div style="font-weight:700">Câu ${i+1}:</div>
+              <div style="font-weight:700; color:${ok ? 'var(--accent)' : 'var(--danger)'}">${ok ? 'ĐÚNG' : 'SAI'}</div>
+            </div>
+            <div style="margin:6px 0 6px">${item.q}</div>
+            <div style="font-size:14px; color:var(--muted)">
+              Bạn chọn: <span style="color:${ok ? 'var(--accent)' : 'var(--danger)'}">${userText}</span><br/>
+              Đáp án đúng: <span class="ans" data-q="${i}" style="color:#86efac">${correctText}</span>
+            </div>
+          </div>
+        `);
+        reviewEl.append($row);
+      });
+    }
+
+    function getRemark(s, t){
+      const r = s/t;
+      if(r === 1) return "Xuất sắc! Bạn hiểu rất tốt về văn hóa Việt Nam.";
+      if(r >= .8) return "Rất tốt! Chỉ còn một chút nữa là hoàn hảo.";
+      if(r >= .6) return "Khá ổn! Bạn có nền tảng tốt, hãy luyện thêm nhé.";
+      return "Bạn có thể đọc lại kiến thức và thử làm lại để cải thiện điểm.";
+    }
+
+    function resetQuiz(){
+      current = 0; score = 0;
+      picks.fill(null);
+      resultEl.hide();
+      $(".card").show();
+      renderQuestion();
+      updateProgress();
+      updateControls();
+      miniHint.text("");
+    }
+
+    nextBtn.on("click", function(){
+      if(picks[current] === null){
+        miniHint.text("Vui lòng chọn một đáp án trước khi chuyển câu.");
+        return;
+      }
+      nextQuestion();
+    });
+    prevBtn.on("click", prevQuestion);
+    retryBtn.on("click", resetQuiz);
+    showAnsBtn.on("click", function(){
+      $(".review .ans").each(function(){
+        const $el = $(this);
+        $el.css("display", $el.css("display")==="none" ? "inline" : "none");
+      });
+    });
+  </script>
+</body>
+</html>
