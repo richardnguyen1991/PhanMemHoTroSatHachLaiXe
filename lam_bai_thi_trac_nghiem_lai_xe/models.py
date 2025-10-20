@@ -1,6 +1,5 @@
 from django.db import models
 
-
 class Quiz(models.Model):
     """Đại diện cho một bài trắc nghiệm."""
 
